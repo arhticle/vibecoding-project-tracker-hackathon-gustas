@@ -4,15 +4,15 @@ import { useState, useEffect } from 'react';
  * Vibecoding Project Tracker — starter scaffold.
  *
  * Build sequence:
- *   - M4  data-model    : render four columns and task cards.
- *   - M5  crud-modal    : add/edit/delete task modal.
- *   - M6  tag-style     : feature vs. bug color coding.
- *   - M7  task-owner    : assignee badge + handoff dropdown.
- *   - M8  due-tint      : color cards by due date.
- *   - M9  task-context  : context briefing field on modal.
- *   - M10 copy-context  : "Copy as Prompt Context" button.
- *   - M11 anchors       : Deliverable Anchor Board above Kanban.
- *   - M12 secret-sauce  : custom feature.
+ *   - M4  data-model           : render four columns and task cards.
+ *   - M5  crud-modal           : add/edit/delete task modal.
+ *   - M6  tag-style            : feature vs. bug color coding.
+ *   - M7  task-owner           : assignee badge + handoff dropdown.
+ *   - M8  due-tint             : color cards by due date.
+ *   - M9  task-context         : context briefing field on modal.
+ *   - M10 copy-context         : "Copy as Prompt Context" button.
+ *   - M11 project-deliverables : Deliverable Anchor Board above Kanban.
+ *   - M12 secret-sauce         : custom feature.
  */
 
 /**
@@ -43,6 +43,14 @@ export const TEAM = ['Gustas', 'Teammate B', 'Teammate C'];
 
 // Supported AI Context tools
 export const AI_TOOLS = ['Claude', 'ChatGPT', 'Cursor', 'Lovable', 'Replit', 'Other'];
+
+// Default Deliverable Anchors (M11 project-deliverables)
+const INITIAL_ANCHORS = [
+  { id: 'presentation', label: 'Presentation', icon: '📊', url: 'https://slides.new/demo', status: 'Ready' },
+  { id: 'demo', label: 'Demo Link', icon: '🚀', url: 'https://vibetracker.vercel.app', status: 'Live' },
+  { id: 'report', label: 'Report', icon: '📄', url: 'https://github.com/arhticle/vibecoding-project-tracker/blob/main/PRD.md', status: 'Draft' },
+  { id: 'documentation', label: 'Documentation', icon: '📚', url: 'https://github.com/arhticle/vibecoding-project-tracker/blob/main/DESIGN.md', status: 'Complete' },
+];
 
 /**
  * M8 due-tint: Calculates due date urgency and returns accessible styles + text labels
@@ -121,7 +129,7 @@ export function useLocalStorage(key, initialValue) {
   return [value, setValue];
 }
 
-// Initial mock tasks with detailed prompt briefings
+// Initial mock tasks
 const INITIAL_TASKS = [
   {
     id: 'task-101',
@@ -180,11 +188,16 @@ const INITIAL_TASKS = [
 export default function App() {
   const [tasks, setTasks] = useLocalStorage('vibetracker.tasks', INITIAL_TASKS);
 
+  // M11 project-deliverables state
+  const [anchors, setAnchors] = useLocalStorage('vibetracker.anchors', INITIAL_ANCHORS);
+  const [editingAnchor, setEditingAnchor] = useState(null);
+  const [anchorUrlInput, setAnchorUrlInput] = useState('');
+
   // M5 crud-modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
 
-  // M10 copy-context: tracking copied state for feedback
+  // M10 copy-context state
   const [copiedTaskId, setCopiedTaskId] = useState(null);
   const [isModalCopied, setIsModalCopied] = useState(false);
 
@@ -200,8 +213,13 @@ export default function App() {
     contextTool: 'Claude',
   });
 
-  // TODO M11 anchors:
-  //   const [anchors, setAnchors] = useLocalStorage('vibetracker.anchors', [...]);
+  // M11 project-deliverables: Anchor Update Handler
+  const handleSaveAnchorUrl = (id) => {
+    setAnchors((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, url: anchorUrlInput } : a))
+    );
+    setEditingAnchor(null);
+  };
 
   // M10 copy-context: One-click copy handler for cards
   const handleCopyCardContext = (e, task) => {
@@ -323,6 +341,82 @@ export default function App() {
           + New Task
         </button>
       </header>
+
+      {/* M11 project-deliverables: Deliverable Anchor Board pinned above Kanban Columns */}
+      <section className="mb-8 bg-slate-800/80 border border-slate-700/80 rounded-lg p-4 shadow-md">
+        <div className="flex items-center justify-between mb-3 border-b border-slate-700/60 pb-2">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
+            <span>⚓</span> Deliverable Anchors
+          </h2>
+          <span className="text-[11px] text-slate-400">
+            Pinned project deliverables & links
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {anchors.map((anchor) => (
+            <div
+              key={anchor.id}
+              className="bg-slate-900 border border-slate-700/70 rounded-md p-3 flex flex-col justify-between hover:border-slate-600 transition"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1.5 font-medium text-sm text-slate-200">
+                  <span>{anchor.icon}</span>
+                  <span>{anchor.label}</span>
+                </div>
+                <span
+                  className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-bold border ${
+                    anchor.status === 'Live' || anchor.status === 'Ready' || anchor.status === 'Complete'
+                      ? 'bg-emerald-950/80 text-emerald-400 border-emerald-800'
+                      : 'bg-amber-950/80 text-amber-400 border-amber-800'
+                  }`}
+                >
+                  {anchor.status}
+                </span>
+              </div>
+
+              {editingAnchor === anchor.id ? (
+                <div className="mt-2 flex items-center gap-1">
+                  <input
+                    type="url"
+                    value={anchorUrlInput}
+                    onChange={(e) => setAnchorUrlInput(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
+                    placeholder="https://..."
+                  />
+                  <button
+                    onClick={() => handleSaveAnchorUrl(anchor.id)}
+                    className="bg-indigo-600 text-white px-2 py-1 rounded text-xs font-semibold"
+                  >
+                    Save
+                  </button>
+                </div>
+              ) : (
+                <div className="mt-2 flex items-center justify-between">
+                  <a
+                    href={anchor.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs font-mono text-indigo-400 hover:text-indigo-300 truncate max-w-[170px] hover:underline"
+                  >
+                    {anchor.url}
+                  </a>
+                  <button
+                    onClick={() => {
+                      setEditingAnchor(anchor.id);
+                      setAnchorUrlInput(anchor.url);
+                    }}
+                    className="text-slate-400 hover:text-slate-200 text-xs px-1.5 py-0.5 rounded bg-slate-800"
+                    title="Edit Link"
+                  >
+                    ✏️
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
 
       {/* 4-Column Kanban Columns */}
       <main className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -580,7 +674,7 @@ export default function App() {
                   <label className="block text-xs font-semibold text-indigo-400 flex items-center gap-1">
                     <span>🤖</span> AI Prompt Context / Briefing
                   </label>
-                  
+
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
