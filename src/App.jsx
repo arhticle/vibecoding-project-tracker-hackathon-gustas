@@ -9,8 +9,8 @@ import { useState, useEffect } from 'react';
  *   - M6  tag-style     : feature vs. bug color coding.
  *   - M7  task-owner    : assignee badge + handoff dropdown.
  *   - M8  due-tint      : color cards by due date.
- *   - M9  context       : context briefing field on modal.
- *   - M10 copy-prompt   : "Copy as Prompt Context" button.
+ *   - M9  task-context  : context briefing field on modal.
+ *   - M10 copy-context  : "Copy as Prompt Context" button.
  *   - M11 anchors       : Deliverable Anchor Board above Kanban.
  *   - M12 secret-sauce  : custom feature.
  */
@@ -23,8 +23,8 @@ import { useState, useEffect } from 'react';
  * @property {'feature'|'bug'} type
  * @property {'todo'|'in-progress'|'review'|'done'} status
  * @property {string} assignee
- * @property {string|null} dueDate     ISO 'YYYY-MM-DD'
- * @property {string} createdDate      ISO 'YYYY-MM-DD'
+ * @property {string|null} dueDate       ISO 'YYYY-MM-DD'
+ * @property {string} createdDate        ISO 'YYYY-MM-DD'
  * @property {string} [context]
  * @property {string|null} [contextTool]
  * @property {string|null} [contextUpdatedAt]
@@ -106,7 +106,7 @@ export function useLocalStorage(key, initialValue) {
   return [value, setValue];
 }
 
-// Initial mock tasks with varying due dates for M8 testing
+// Initial mock tasks with detailed prompt briefings
 const INITIAL_TASKS = [
   {
     id: 'task-101',
@@ -115,9 +115,9 @@ const INITIAL_TASKS = [
     type: 'feature',
     status: 'done',
     assignee: 'Gustas',
-    dueDate: '2026-10-18', // Overdue
+    dueDate: '2026-10-18',
     createdDate: '2026-10-15',
-    context: 'Ran npm install and verified dev server at localhost:5173.',
+    context: 'SYSTEM: You are an expert React developer. TASK: Scaffold a Vite React app with Tailwind CSS config. Include proper post-css setup and dark mode defaults in tailwind.config.js.',
     contextTool: 'Claude',
     contextUpdatedAt: '2026-10-15T10:00:00Z',
   },
@@ -128,9 +128,9 @@ const INITIAL_TASKS = [
     type: 'feature',
     status: 'in-progress',
     assignee: 'Gustas',
-    dueDate: '2026-10-21', // Due soon
+    dueDate: '2026-10-21',
     createdDate: '2026-10-20',
-    context: 'Mapping STAGES array to responsive grid columns.',
+    context: 'CONTEXT: Rendering Kanban columns using STAGES array. Ensure each stage filters matching tasks and displays column task counts in a pill badge.',
     contextTool: 'ChatGPT',
     contextUpdatedAt: '2026-10-20T11:00:00Z',
   },
@@ -141,9 +141,9 @@ const INITIAL_TASKS = [
     type: 'bug',
     status: 'review',
     assignee: 'Teammate B',
-    dueDate: '2026-10-20', // Overdue / Today
+    dueDate: '2026-10-20',
     createdDate: '2026-10-20',
-    context: 'Resolved Vercel API 500 error on ping deliveries.',
+    context: 'DEBUGGING context: GitHub webhook delivered ping with 500 status. Root cause: content-type was set to application/x-www-form-urlencoded instead of application/json.',
     contextTool: 'Cursor',
     contextUpdatedAt: '2026-10-20T11:30:00Z',
   },
@@ -154,11 +154,11 @@ const INITIAL_TASKS = [
     type: 'feature',
     status: 'todo',
     assignee: 'Teammate C',
-    dueDate: '2026-10-28', // On track
+    dueDate: '2026-10-28',
     createdDate: '2026-10-20',
-    context: 'Next up for M5 milestone.',
-    contextTool: null,
-    contextUpdatedAt: null,
+    context: 'REQUIREMENT: Build a modal dialog that supports both creation and editing modes. Must synchronize state with useLocalStorage hook.',
+    contextTool: 'Claude',
+    contextUpdatedAt: '2026-10-20T12:00:00Z',
   },
 ];
 
@@ -285,8 +285,6 @@ export default function App() {
         </button>
       </header>
 
-      {/* TODO M11 anchors: render the Anchor Board above the board. */}
-
       {/* 4-Column Kanban Columns */}
       <main className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {STAGES.map((stage) => {
@@ -318,6 +316,7 @@ export default function App() {
                     const isFeature = task.type === 'feature';
                     const initial = task.assignee ? task.assignee.charAt(0).toUpperCase() : '?';
                     const dueStatus = getDueStatus(task.dueDate);
+                    const hasContext = Boolean(task.context && task.context.trim().length > 0);
 
                     return (
                       <div
@@ -329,7 +328,7 @@ export default function App() {
                           isFeature ? 'border-l-4 border-l-emerald-500' : 'border-l-4 border-l-rose-500'
                         } rounded-md p-4 shadow-sm hover:border-slate-500 transition cursor-pointer`}
                       >
-                        {/* Header Row: M6 Type Tag + M7 Assignee Avatar Badge */}
+                        {/* Header Row: Type Tag + Assignee Avatar Badge */}
                         <div className="flex items-center justify-between mb-2">
                           <span
                             className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded-full font-bold flex items-center gap-1 ${
@@ -341,7 +340,6 @@ export default function App() {
                             {isFeature ? '✦ FEATURE' : '🪲 BUG'}
                           </span>
 
-                          {/* M7 task-owner: Assignee Avatar Badge */}
                           <div className="flex items-center gap-1.5 bg-slate-900/90 border border-slate-700 px-2 py-0.5 rounded-full">
                             <span className="w-4 h-4 rounded-full bg-indigo-600 text-[10px] font-bold text-white flex items-center justify-center font-mono">
                               {initial}
@@ -358,6 +356,16 @@ export default function App() {
                         <p className="text-xs text-slate-400 line-clamp-2 mb-3">
                           {task.description}
                         </p>
+
+                        {/* M9 task-context Badge Indicator */}
+                        {hasContext && (
+                          <div className="mb-3 flex items-center gap-1.5 bg-indigo-950/60 border border-indigo-800/80 rounded px-2 py-1 text-[11px] text-indigo-300 font-mono">
+                            <span>🤖</span>
+                            <span className="truncate">
+                              {task.contextTool || 'AI'} Briefing Attached
+                            </span>
+                          </div>
+                        )}
 
                         {/* M8 due-tint: Deadline Badge & Date Display */}
                         {dueStatus && (
@@ -514,31 +522,37 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Prompt Context & Tool Input */}
-              <div className="border-t border-slate-700 pt-3 mt-3">
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-xs font-medium text-indigo-400">
-                    AI Prompt Context
+              {/* M9 task-context: Paste-Ready AI Prompt Briefing & Tool Selection */}
+              <div className="border-t border-slate-700/80 pt-3 mt-3 bg-slate-900/40 p-3 rounded-md border border-slate-700/50">
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-semibold text-indigo-400 flex items-center gap-1">
+                    <span>🤖</span> AI Prompt Context / Briefing
                   </label>
-                  <select
-                    value={formData.contextTool}
-                    onChange={(e) => setFormData({ ...formData, contextTool: e.target.value })}
-                    className="bg-slate-900 border border-slate-700 text-xs rounded px-2 py-1 text-slate-300"
-                  >
-                    {AI_TOOLS.map((tool) => (
-                      <option key={tool} value={tool}>
-                        {tool}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-slate-400">Tool:</span>
+                    <select
+                      value={formData.contextTool}
+                      onChange={(e) => setFormData({ ...formData, contextTool: e.target.value })}
+                      className="bg-slate-900 border border-slate-700 text-xs rounded px-2 py-1 text-slate-200 focus:border-indigo-500"
+                    >
+                      {AI_TOOLS.map((tool) => (
+                        <option key={tool} value={tool}>
+                          {tool}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
                 <textarea
-                  rows={3}
+                  rows={4}
                   value={formData.context}
                   onChange={(e) => setFormData({ ...formData, context: e.target.value })}
-                  placeholder="Paste AI prompts or technical briefings here..."
+                  placeholder="Paste context, error logs, or paste-ready briefings for your AI assistant here..."
                   className="w-full bg-slate-900 border border-slate-700 rounded-md px-3 py-2 text-slate-100 text-xs font-mono focus:outline-none focus:border-indigo-500"
                 />
+                <p className="text-[10px] text-slate-500 mt-1">
+                  Stores technical context, sub-requirements, or error logs to pair with AI models[cite: 11].
+                </p>
               </div>
 
               {/* Modal Action Buttons */}
