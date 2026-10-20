@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
  * Vibecoding Project Tracker — starter scaffold.
  *
  * Build sequence:
- *   - M4  data-model    : render four columns and task cards.
+ *   - M4  data-model    : render the four columns and the task cards below.
  *   - M5  crud-modal    : add/edit/delete task modal.
  *   - M6  tag-style     : feature vs. bug color coding.
  *   - M7  task-owner    : assignee badge + handoff dropdown.
@@ -23,8 +23,8 @@ import { useState, useEffect } from 'react';
  * @property {'feature'|'bug'} type
  * @property {'todo'|'in-progress'|'review'|'done'} status
  * @property {string} assignee
- * @property {string|null} dueDate       ISO 'YYYY-MM-DD'
- * @property {string} createdDate        ISO 'YYYY-MM-DD'
+ * @property {string|null} dueDate     ISO 'YYYY-MM-DD'
+ * @property {string} createdDate      ISO 'YYYY-MM-DD'
  * @property {string} [context]
  * @property {string|null} [contextTool]
  * @property {string|null} [contextUpdatedAt]
@@ -68,7 +68,7 @@ export function useLocalStorage(key, initialValue) {
   return [value, setValue];
 }
 
-// Default seed tasks
+// 3-4 initial mock tasks for M4 initialization
 const INITIAL_TASKS = [
   {
     id: 'task-101',
@@ -126,12 +126,12 @@ const INITIAL_TASKS = [
 
 export default function App() {
   const [tasks, setTasks] = useLocalStorage('vibetracker.tasks', INITIAL_TASKS);
-  
-  // Modal state (M5 crud-modal)
+
+  // M5 crud-modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
 
-  // Form State
+  // Form input state
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -143,7 +143,10 @@ export default function App() {
     contextTool: 'Claude',
   });
 
-  // Open modal in Create mode
+  // TODO M11 anchors:
+  //   const [anchors, setAnchors] = useLocalStorage('vibetracker.anchors', [...]);
+
+  // Open modal in Create Mode
   const handleOpenCreate = () => {
     setEditingTask(null);
     setFormData({
@@ -159,7 +162,7 @@ export default function App() {
     setIsModalOpen(true);
   };
 
-  // Open modal in Edit mode
+  // Open modal in Edit Mode
   const handleOpenEdit = (task) => {
     setEditingTask(task);
     setFormData({
@@ -175,14 +178,13 @@ export default function App() {
     setIsModalOpen(true);
   };
 
-  // Save Task (Create or Update)
+  // Create or update task on submit
   const handleSaveTask = (e) => {
     e.preventDefault();
     const today = new Date().toISOString().split('T')[0];
     const nowIso = new Date().toISOString();
 
     if (editingTask) {
-      // Update existing
       setTasks((prev) =>
         prev.map((t) =>
           t.id === editingTask.id
@@ -196,7 +198,6 @@ export default function App() {
         )
       );
     } else {
-      // Create new
       const newTask = {
         id: 'task-' + Date.now(),
         ...formData,
@@ -210,7 +211,7 @@ export default function App() {
     setIsModalOpen(false);
   };
 
-  // Delete Task
+  // Delete task
   const handleDeleteTask = (id) => {
     if (window.confirm('Delete this task? This action cannot be undone.')) {
       setTasks((prev) => prev.filter((t) => t.id !== id));
@@ -220,16 +221,17 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 p-6">
-      {/* Header */}
       <header className="mb-6 flex items-center justify-between border-b border-slate-800 pb-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-100 tracking-tight">
             Vibecoding Project Tracker
           </h1>
-          <p className="text-sm text-slate-400">Team Gustas</p>
+          <p className="text-sm text-slate-400">
+            Team Gustas
+          </p>
         </div>
-        
-        {/* "+" Button */}
+
+        {/* "+" New Task Button */}
         <button
           onClick={handleOpenCreate}
           className="bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm px-4 py-2 rounded-md transition shadow-sm flex items-center gap-1"
@@ -237,6 +239,8 @@ export default function App() {
           + New Task
         </button>
       </header>
+
+      {/* TODO M11 anchors: render the Anchor Board above the board. */}
 
       {/* 4-Column Kanban Columns */}
       <main className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -262,37 +266,44 @@ export default function App() {
               <div className="flex-1 space-y-3">
                 {stageTasks.length === 0 ? (
                   <div className="border border-dashed border-slate-700/70 rounded-md p-4 text-center text-xs text-slate-500">
-                    All clear here — keep vibing.
+                    No tasks in {stage.label.toLowerCase()}
                   </div>
                 ) : (
-                  stageTasks.map((task) => (
-                    <div
-                      key={task.id}
-                      onClick={() => handleOpenEdit(task)}
-                      className="bg-slate-800 border border-slate-700 rounded-md p-4 shadow-sm hover:border-indigo-500/50 transition cursor-pointer"
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <span
-                          className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded font-semibold ${
-                            task.type === 'feature'
-                              ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-800'
-                              : 'bg-rose-950/80 text-rose-400 border border-rose-800'
-                          }`}
-                        >
-                          {task.type}
-                        </span>
-                        <span className="text-xs text-slate-400 font-mono">
-                          {task.assignee}
-                        </span>
+                  stageTasks.map((task) => {
+                    const isFeature = task.type === 'feature';
+
+                    return (
+                      <div
+                        key={task.id}
+                        onClick={() => handleOpenEdit(task)}
+                        className={`bg-slate-800 border-t border-r border-b border-slate-700 ${
+                          isFeature ? 'border-l-4 border-l-emerald-500' : 'border-l-4 border-l-rose-500'
+                        } rounded-md p-4 shadow-sm hover:border-slate-500 transition cursor-pointer`}
+                      >
+                        {/* M6 tag-style: Feature vs Bug distinction badge */}
+                        <div className="flex items-center justify-between mb-2">
+                          <span
+                            className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded-full font-bold flex items-center gap-1 ${
+                              isFeature
+                                ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-800'
+                                : 'bg-rose-950/80 text-rose-400 border border-rose-800'
+                            }`}
+                          >
+                            {isFeature ? '✦ FEATURE' : '🪲 BUG'}
+                          </span>
+                          <span className="text-xs text-slate-400 font-mono">
+                            {task.assignee}
+                          </span>
+                        </div>
+                        <h3 className="font-medium text-sm text-slate-100 mb-1">
+                          {task.title}
+                        </h3>
+                        <p className="text-xs text-slate-400 line-clamp-2">
+                          {task.description}
+                        </p>
                       </div>
-                      <h3 className="font-medium text-sm text-slate-100 mb-1">
-                        {task.title}
-                      </h3>
-                      <p className="text-xs text-slate-400 line-clamp-2">
-                        {task.description}
-                      </p>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>
@@ -317,7 +328,7 @@ export default function App() {
             </div>
 
             <form onSubmit={handleSaveTask} className="p-6 space-y-4 text-sm">
-              {/* Title */}
+              {/* Title Input */}
               <div>
                 <label className="block text-xs font-medium text-slate-300 mb-1">
                   Title *
@@ -332,7 +343,7 @@ export default function App() {
                 />
               </div>
 
-              {/* Description */}
+              {/* Description Input */}
               <div>
                 <label className="block text-xs font-medium text-slate-300 mb-1">
                   Description
@@ -346,7 +357,7 @@ export default function App() {
                 />
               </div>
 
-              {/* Grid: Type & Status */}
+              {/* Type & Status Selects (M6 tag-style preview) */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-slate-300 mb-1">
@@ -357,8 +368,8 @@ export default function App() {
                     onChange={(e) => setFormData({ ...formData, type: e.target.value })}
                     className="w-full bg-slate-900 border border-slate-700 rounded-md px-3 py-2 text-slate-100 focus:outline-none focus:border-indigo-500"
                   >
-                    <option value="feature">Feature</option>
-                    <option value="bug">Bug</option>
+                    <option value="feature">✦ Feature</option>
+                    <option value="bug">🪲 Bug</option>
                   </select>
                 </div>
 
@@ -380,7 +391,7 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Grid: Assignee & Due Date */}
+              {/* Assignee & Due Date Selects */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-slate-300 mb-1">
@@ -412,7 +423,7 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Prompt Context & Tool */}
+              {/* Prompt Context & Tool Input */}
               <div className="border-t border-slate-700 pt-3 mt-3">
                 <div className="flex items-center justify-between mb-1">
                   <label className="block text-xs font-medium text-indigo-400">
@@ -439,7 +450,7 @@ export default function App() {
                 />
               </div>
 
-              {/* Action Buttons */}
+              {/* Modal Action Buttons */}
               <div className="flex items-center justify-between pt-4 border-t border-slate-700">
                 {editingTask ? (
                   <button
