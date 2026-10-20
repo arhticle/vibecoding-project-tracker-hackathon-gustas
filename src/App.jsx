@@ -3,22 +3,16 @@ import { useState, useEffect } from 'react';
 /**
  * Vibecoding Project Tracker — starter scaffold.
  *
- * This file is intentionally almost empty. The boilerplate (Vite, React,
- * Tailwind) is configured for you, plus a few shared constants and a
- * localStorage helper. Everything visible on screen, you build.
- *
- * Where to start (build sequence in Phase 3):
- *   - M4  data-model    : render the four columns and the task cards below.
- *   - M5  crud-modal    : add the "+" button modal and the edit-on-click modal.
- *   - M6  tag-style     : feature vs. bug color coding (uses DESIGN.md §2 colors).
- *   - M7  task-owner    : assignee badge + "Hand off to..." dropdown.
- *   - M8  due-tint      : color cards by due date (uses DESIGN.md §2 due-state colors).
- *   - M9  context       : a curated Context briefing field on the modal.
- *   - M10 copy-prompt   : a "Copy as Prompt Context" button that serializes the task + context.
- *   - M11 anchors       : the Anchor Board above the Kanban.
- *   - M12 secret-sauce  : the one open-ended thing that makes your tracker yours.
- *
- * Search the file for `TODO M<n>` to find the right hook for each milestone.
+ * Build sequence:
+ *   - M4  data-model    : render four columns and task cards.
+ *   - M5  crud-modal    : add/edit/delete task modal.
+ *   - M6  tag-style     : feature vs. bug color coding.
+ *   - M7  task-owner    : assignee badge + handoff dropdown.
+ *   - M8  due-tint      : due date color tinting.
+ *   - M9  context       : context briefing field on modal.
+ *   - M10 copy-prompt   : "Copy as Prompt Context" button.
+ *   - M11 anchors       : Deliverable Anchor Board above Kanban.
+ *   - M12 secret-sauce  : custom feature.
  */
 
 /**
@@ -29,15 +23,14 @@ import { useState, useEffect } from 'react';
  * @property {'feature'|'bug'} type
  * @property {'todo'|'in-progress'|'review'|'done'} status
  * @property {string} assignee
- * @property {string|null} dueDate     ISO 'YYYY-MM-DD'
- * @property {string} createdDate      ISO 'YYYY-MM-DD'
+ * @property {string|null} dueDate       ISO 'YYYY-MM-DD'
+ * @property {string} createdDate        ISO 'YYYY-MM-DD'
  * @property {string} [context]
  * @property {string|null} [contextTool]
  * @property {string|null} [contextUpdatedAt]
  */
 
 // The four columns of the board, in render order.
-// Use these IDs everywhere — do not invent new ones.
 export const STAGES = [
   { id: 'todo',        label: 'To Do' },
   { id: 'in-progress', label: 'In Progress' },
@@ -45,15 +38,14 @@ export const STAGES = [
   { id: 'done',        label: 'Done' },
 ];
 
-// Replace these placeholders with the three names from PRD §8 before M4.
-// They become the only valid values for `Task.assignee`.
+// Team members list
 export const TEAM = ['Gustas', 'Teammate B', 'Teammate C'];
+
+// Supported AI Context tools
+export const AI_TOOLS = ['Claude', 'ChatGPT', 'Cursor', 'Lovable', 'Replit', 'Other'];
 
 /**
  * A tiny localStorage hook — survives reloads, no library needed.
- *
- * Usage:
- *   const [tasks, setTasks] = useLocalStorage('vibetracker.tasks', []);
  */
 export function useLocalStorage(key, initialValue) {
   const [value, setValue] = useState(() => {
@@ -76,7 +68,7 @@ export function useLocalStorage(key, initialValue) {
   return [value, setValue];
 }
 
-// 3-4 initial mock tasks for M4 initialization
+// Default seed tasks
 const INITIAL_TASKS = [
   {
     id: 'task-101',
@@ -133,30 +125,120 @@ const INITIAL_TASKS = [
 ];
 
 export default function App() {
-  const [tasks] = useLocalStorage('vibetracker.tasks', INITIAL_TASKS);
+  const [tasks, setTasks] = useLocalStorage('vibetracker.tasks', INITIAL_TASKS);
+  
+  // Modal state (M5 crud-modal)
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState(null);
 
-  // TODO M5 crud-modal:
-  //   const [editing, setEditing] = useState(null);
+  // Form State
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    type: 'feature',
+    status: 'todo',
+    assignee: TEAM[0],
+    dueDate: '',
+    context: '',
+    contextTool: 'Claude',
+  });
 
-  // TODO M11 anchors:
-  //   const [anchors, setAnchors] = useLocalStorage('vibetracker.anchors', [...]);
+  // Open modal in Create mode
+  const handleOpenCreate = () => {
+    setEditingTask(null);
+    setFormData({
+      title: '',
+      description: '',
+      type: 'feature',
+      status: 'todo',
+      assignee: TEAM[0],
+      dueDate: '',
+      context: '',
+      contextTool: 'Claude',
+    });
+    setIsModalOpen(true);
+  };
+
+  // Open modal in Edit mode
+  const handleOpenEdit = (task) => {
+    setEditingTask(task);
+    setFormData({
+      title: task.title,
+      description: task.description || '',
+      type: task.type,
+      status: task.status,
+      assignee: task.assignee,
+      dueDate: task.dueDate || '',
+      context: task.context || '',
+      contextTool: task.contextTool || 'Claude',
+    });
+    setIsModalOpen(true);
+  };
+
+  // Save Task (Create or Update)
+  const handleSaveTask = (e) => {
+    e.preventDefault();
+    const today = new Date().toISOString().split('T')[0];
+    const nowIso = new Date().toISOString();
+
+    if (editingTask) {
+      // Update existing
+      setTasks((prev) =>
+        prev.map((t) =>
+          t.id === editingTask.id
+            ? {
+                ...t,
+                ...formData,
+                dueDate: formData.dueDate || null,
+                contextUpdatedAt: formData.context ? nowIso : t.contextUpdatedAt,
+              }
+            : t
+        )
+      );
+    } else {
+      // Create new
+      const newTask = {
+        id: 'task-' + Date.now(),
+        ...formData,
+        dueDate: formData.dueDate || null,
+        createdDate: today,
+        contextUpdatedAt: formData.context ? nowIso : null,
+      };
+      setTasks((prev) => [...prev, newTask]);
+    }
+
+    setIsModalOpen(false);
+  };
+
+  // Delete Task
+  const handleDeleteTask = (id) => {
+    if (window.confirm('Delete this task? This action cannot be undone.')) {
+      setTasks((prev) => prev.filter((t) => t.id !== id));
+      setIsModalOpen(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 p-6">
-      <header className="mb-6 flex items-end justify-between border-b border-slate-800 pb-4">
+      {/* Header */}
+      <header className="mb-6 flex items-center justify-between border-b border-slate-800 pb-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100">
+          <h1 className="text-2xl font-bold text-slate-100 tracking-tight">
             Vibecoding Project Tracker
           </h1>
-          <p className="text-sm text-slate-400">
-            Team Gustas
-          </p>
+          <p className="text-sm text-slate-400">Team Gustas</p>
         </div>
+        
+        {/* "+" Button */}
+        <button
+          onClick={handleOpenCreate}
+          className="bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm px-4 py-2 rounded-md transition shadow-sm flex items-center gap-1"
+        >
+          + New Task
+        </button>
       </header>
 
-      {/* TODO M11 anchors: render the Anchor Board above the board. */}
-
-      {/* M4 data-model: Render Kanban board with 4 columns from STAGES */}
+      {/* 4-Column Kanban Columns */}
       <main className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {STAGES.map((stage) => {
           const stageTasks = tasks.filter((task) => task.status === stage.id);
@@ -180,12 +262,13 @@ export default function App() {
               <div className="flex-1 space-y-3">
                 {stageTasks.length === 0 ? (
                   <div className="border border-dashed border-slate-700/70 rounded-md p-4 text-center text-xs text-slate-500">
-                    No tasks in {stage.label.toLowerCase()}
+                    All clear here — keep vibing.
                   </div>
                 ) : (
                   stageTasks.map((task) => (
                     <div
                       key={task.id}
+                      onClick={() => handleOpenEdit(task)}
                       className="bg-slate-800 border border-slate-700 rounded-md p-4 shadow-sm hover:border-indigo-500/50 transition cursor-pointer"
                     >
                       <div className="flex items-center justify-between mb-2">
@@ -216,6 +299,180 @@ export default function App() {
           );
         })}
       </main>
+
+      {/* CRUD Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
+          <div className="bg-slate-800 border border-slate-700 w-full max-w-lg rounded-lg shadow-xl overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700">
+              <h2 className="text-lg font-bold text-slate-100">
+                {editingTask ? 'Edit Task' : 'Create New Task'}
+              </h2>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="text-slate-400 hover:text-slate-200 text-lg leading-none"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveTask} className="p-6 space-y-4 text-sm">
+              {/* Title */}
+              <div>
+                <label className="block text-xs font-medium text-slate-300 mb-1">
+                  Title *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  placeholder="Task title..."
+                  className="w-full bg-slate-900 border border-slate-700 rounded-md px-3 py-2 text-slate-100 focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-xs font-medium text-slate-300 mb-1">
+                  Description
+                </label>
+                <textarea
+                  rows={2}
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Task description..."
+                  className="w-full bg-slate-900 border border-slate-700 rounded-md px-3 py-2 text-slate-100 focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              {/* Grid: Type & Status */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1">
+                    Type
+                  </label>
+                  <select
+                    value={formData.type}
+                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-md px-3 py-2 text-slate-100 focus:outline-none focus:border-indigo-500"
+                  >
+                    <option value="feature">Feature</option>
+                    <option value="bug">Bug</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1">
+                    Status
+                  </label>
+                  <select
+                    value={formData.status}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-md px-3 py-2 text-slate-100 focus:outline-none focus:border-indigo-500"
+                  >
+                    {STAGES.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Grid: Assignee & Due Date */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1">
+                    Assignee
+                  </label>
+                  <select
+                    value={formData.assignee}
+                    onChange={(e) => setFormData({ ...formData, assignee: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-md px-3 py-2 text-slate-100 focus:outline-none focus:border-indigo-500"
+                  >
+                    {TEAM.map((member) => (
+                      <option key={member} value={member}>
+                        {member}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1">
+                    Due Date
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.dueDate}
+                    onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-md px-3 py-2 text-slate-100 focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+              </div>
+
+              {/* Prompt Context & Tool */}
+              <div className="border-t border-slate-700 pt-3 mt-3">
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-medium text-indigo-400">
+                    AI Prompt Context
+                  </label>
+                  <select
+                    value={formData.contextTool}
+                    onChange={(e) => setFormData({ ...formData, contextTool: e.target.value })}
+                    className="bg-slate-900 border border-slate-700 text-xs rounded px-2 py-1 text-slate-300"
+                  >
+                    {AI_TOOLS.map((tool) => (
+                      <option key={tool} value={tool}>
+                        {tool}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <textarea
+                  rows={3}
+                  value={formData.context}
+                  onChange={(e) => setFormData({ ...formData, context: e.target.value })}
+                  placeholder="Paste AI prompts or technical briefings here..."
+                  className="w-full bg-slate-900 border border-slate-700 rounded-md px-3 py-2 text-slate-100 text-xs font-mono focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-between pt-4 border-t border-slate-700">
+                {editingTask ? (
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteTask(editingTask.id)}
+                    className="bg-rose-950 text-rose-400 border border-rose-800 hover:bg-rose-900 px-3 py-1.5 rounded-md text-xs font-medium transition"
+                  >
+                    Delete Task
+                  </button>
+                ) : (
+                  <div />
+                )}
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    className="px-3 py-1.5 rounded-md text-xs text-slate-400 hover:text-slate-200 transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-1.5 rounded-md text-xs font-medium transition"
+                  >
+                    {editingTask ? 'Save Changes' : 'Create Task'}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
