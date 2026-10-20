@@ -3,7 +3,7 @@
 **Status:** Hackathon starter PRD · review and fill in the **`<TODO>`** sections before you tag `prd-done`.
 
 ---
-
+#placeholder push to say presnetation is done
 ## 1. Problem
 
 Vibecoding teams have two recurring pains with large projects:
