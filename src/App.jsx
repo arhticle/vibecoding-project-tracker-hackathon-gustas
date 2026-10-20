@@ -83,6 +83,21 @@ export function getDueStatus(dueDate) {
 }
 
 /**
+ * M10 copy-context: Formats task metadata and prompt context into a paste-ready briefing
+ */
+export function formatPromptContext(task) {
+  return `[TASK BRIEFING]
+Title: ${task.title}
+Type: ${task.type.toUpperCase()} | Status: ${task.status} | Assignee: ${task.assignee}${task.dueDate ? ` | Due: ${task.dueDate}` : ''}
+
+Description:
+${task.description || 'N/A'}
+
+AI Context / Instructions (${task.contextTool || 'AI'}):
+${task.context || 'N/A'}`;
+}
+
+/**
  * A tiny localStorage hook — survives reloads, no library needed.
  */
 export function useLocalStorage(key, initialValue) {
@@ -169,6 +184,10 @@ export default function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
 
+  // M10 copy-context: tracking copied state for feedback
+  const [copiedTaskId, setCopiedTaskId] = useState(null);
+  const [isModalCopied, setIsModalCopied] = useState(false);
+
   // Form input state
   const [formData, setFormData] = useState({
     title: '',
@@ -183,6 +202,26 @@ export default function App() {
 
   // TODO M11 anchors:
   //   const [anchors, setAnchors] = useLocalStorage('vibetracker.anchors', [...]);
+
+  // M10 copy-context: One-click copy handler for cards
+  const handleCopyCardContext = (e, task) => {
+    e.stopPropagation();
+    const promptText = formatPromptContext(task);
+    navigator.clipboard.writeText(promptText);
+    setCopiedTaskId(task.id);
+    setTimeout(() => setCopiedTaskId(null), 2000);
+  };
+
+  // M10 copy-context: One-click copy handler inside modal
+  const handleCopyModalContext = () => {
+    const promptText = formatPromptContext({
+      ...formData,
+      title: formData.title || 'Untitled Task',
+    });
+    navigator.clipboard.writeText(promptText);
+    setIsModalCopied(true);
+    setTimeout(() => setIsModalCopied(false), 2000);
+  };
 
   // Quick handoff handler (M7 task-owner)
   const handleHandoff = (taskId, newAssignee) => {
@@ -317,6 +356,7 @@ export default function App() {
                     const initial = task.assignee ? task.assignee.charAt(0).toUpperCase() : '?';
                     const dueStatus = getDueStatus(task.dueDate);
                     const hasContext = Boolean(task.context && task.context.trim().length > 0);
+                    const isCopied = copiedTaskId === task.id;
 
                     return (
                       <div
@@ -357,13 +397,25 @@ export default function App() {
                           {task.description}
                         </p>
 
-                        {/* M9 task-context Badge Indicator */}
+                        {/* M9 task-context & M10 copy-context: Badge + One-Click Copy Button */}
                         {hasContext && (
-                          <div className="mb-3 flex items-center gap-1.5 bg-indigo-950/60 border border-indigo-800/80 rounded px-2 py-1 text-[11px] text-indigo-300 font-mono">
-                            <span>🤖</span>
-                            <span className="truncate">
-                              {task.contextTool || 'AI'} Briefing Attached
-                            </span>
+                          <div className="mb-3 flex items-center justify-between bg-indigo-950/60 border border-indigo-800/80 rounded px-2 py-1 text-[11px]">
+                            <div className="flex items-center gap-1 text-indigo-300 font-mono truncate mr-1">
+                              <span>🤖</span>
+                              <span className="truncate">{task.contextTool || 'AI'} Briefing</span>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={(e) => handleCopyCardContext(e, task)}
+                              className={`text-[10px] font-mono px-2 py-0.5 rounded transition font-semibold flex items-center gap-1 shrink-0 ${
+                                isCopied
+                                  ? 'bg-emerald-600 text-white'
+                                  : 'bg-indigo-600 hover:bg-indigo-500 text-white'
+                              }`}
+                            >
+                              {isCopied ? '✓ Copied!' : '📋 Copy Prompt'}
+                            </button>
                           </div>
                         )}
 
@@ -522,14 +574,26 @@ export default function App() {
                 </div>
               </div>
 
-              {/* M9 task-context: Paste-Ready AI Prompt Briefing & Tool Selection */}
+              {/* M9 & M10: AI Prompt Context Field + One-Click Copy Button */}
               <div className="border-t border-slate-700/80 pt-3 mt-3 bg-slate-900/40 p-3 rounded-md border border-slate-700/50">
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="block text-xs font-semibold text-indigo-400 flex items-center gap-1">
                     <span>🤖</span> AI Prompt Context / Briefing
                   </label>
+                  
                   <div className="flex items-center gap-2">
-                    <span className="text-[11px] text-slate-400">Tool:</span>
+                    <button
+                      type="button"
+                      onClick={handleCopyModalContext}
+                      className={`text-[10px] font-mono px-2 py-0.5 rounded transition font-semibold flex items-center gap-1 ${
+                        isModalCopied
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-indigo-600 hover:bg-indigo-500 text-white'
+                      }`}
+                    >
+                      {isModalCopied ? '✓ Copied Briefing!' : '📋 Copy Prompt Context'}
+                    </button>
+
                     <select
                       value={formData.contextTool}
                       onChange={(e) => setFormData({ ...formData, contextTool: e.target.value })}
@@ -543,6 +607,7 @@ export default function App() {
                     </select>
                   </div>
                 </div>
+
                 <textarea
                   rows={4}
                   value={formData.context}
@@ -550,9 +615,6 @@ export default function App() {
                   placeholder="Paste context, error logs, or paste-ready briefings for your AI assistant here..."
                   className="w-full bg-slate-900 border border-slate-700 rounded-md px-3 py-2 text-slate-100 text-xs font-mono focus:outline-none focus:border-indigo-500"
                 />
-                <p className="text-[10px] text-slate-500 mt-1">
-                  Stores technical context, sub-requirements, or error logs to pair with AI models[cite: 11].
-                </p>
               </div>
 
               {/* Modal Action Buttons */}
