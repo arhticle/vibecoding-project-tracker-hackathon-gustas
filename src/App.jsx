@@ -102,7 +102,7 @@ const INITIAL_TASKS = [
     description: 'Ensure content-type is set to application/json in GitHub webhook settings.',
     type: 'bug',
     status: 'review',
-    assignee: 'Gustas',
+    assignee: 'Teammate B',
     dueDate: '2026-10-20',
     createdDate: '2026-10-20',
     context: 'Resolved Vercel API 500 error on ping deliveries.',
@@ -115,7 +115,7 @@ const INITIAL_TASKS = [
     description: 'Add modal to create, edit, and delete board tasks with localStorage sync.',
     type: 'feature',
     status: 'todo',
-    assignee: 'Gustas',
+    assignee: 'Teammate C',
     dueDate: '2026-10-23',
     createdDate: '2026-10-20',
     context: 'Next up for M5 milestone.',
@@ -145,6 +145,13 @@ export default function App() {
 
   // TODO M11 anchors:
   //   const [anchors, setAnchors] = useLocalStorage('vibetracker.anchors', [...]);
+
+  // Quick handoff handler (M7 task-owner)
+  const handleHandoff = (taskId, newAssignee) => {
+    setTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, assignee: newAssignee } : t))
+    );
+  };
 
   // Open modal in Create Mode
   const handleOpenCreate = () => {
@@ -271,6 +278,7 @@ export default function App() {
                 ) : (
                   stageTasks.map((task) => {
                     const isFeature = task.type === 'feature';
+                    const initial = task.assignee ? task.assignee.charAt(0).toUpperCase() : '?';
 
                     return (
                       <div
@@ -280,7 +288,7 @@ export default function App() {
                           isFeature ? 'border-l-4 border-l-emerald-500' : 'border-l-4 border-l-rose-500'
                         } rounded-md p-4 shadow-sm hover:border-slate-500 transition cursor-pointer`}
                       >
-                        {/* M6 tag-style: Feature vs Bug distinction badge */}
+                        {/* Header Row: M6 Type Tag + M7 Assignee Avatar Badge */}
                         <div className="flex items-center justify-between mb-2">
                           <span
                             className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded-full font-bold flex items-center gap-1 ${
@@ -291,16 +299,43 @@ export default function App() {
                           >
                             {isFeature ? '✦ FEATURE' : '🪲 BUG'}
                           </span>
-                          <span className="text-xs text-slate-400 font-mono">
-                            {task.assignee}
-                          </span>
+
+                          {/* M7 task-owner: Assignee Avatar Badge */}
+                          <div className="flex items-center gap-1.5 bg-slate-900/90 border border-slate-700 px-2 py-0.5 rounded-full">
+                            <span className="w-4 h-4 rounded-full bg-indigo-600 text-[10px] font-bold text-white flex items-center justify-center font-mono">
+                              {initial}
+                            </span>
+                            <span className="text-[11px] font-medium text-slate-300">
+                              {task.assignee}
+                            </span>
+                          </div>
                         </div>
+
                         <h3 className="font-medium text-sm text-slate-100 mb-1">
                           {task.title}
                         </h3>
-                        <p className="text-xs text-slate-400 line-clamp-2">
+                        <p className="text-xs text-slate-400 line-clamp-2 mb-3">
                           {task.description}
                         </p>
+
+                        {/* M7 task-owner: Inline "Hand off to..." selector */}
+                        <div
+                          className="pt-2 border-t border-slate-700/60 flex items-center justify-between text-[11px]"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <span className="text-slate-500">Hand off to:</span>
+                          <select
+                            value={task.assignee}
+                            onChange={(e) => handleHandoff(task.id, e.target.value)}
+                            className="bg-slate-900 border border-slate-700 text-slate-300 text-[11px] rounded px-1.5 py-0.5 focus:outline-none focus:border-indigo-500"
+                          >
+                            {TEAM.map((member) => (
+                              <option key={member} value={member}>
+                                {member}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
                     );
                   })
@@ -357,7 +392,7 @@ export default function App() {
                 />
               </div>
 
-              {/* Type & Status Selects (M6 tag-style preview) */}
+              {/* Type & Status Selects */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-slate-300 mb-1">
@@ -395,7 +430,7 @@ export default function App() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-slate-300 mb-1">
-                    Assignee
+                    Assignee (Task Owner)
                   </label>
                   <select
                     value={formData.assignee}
