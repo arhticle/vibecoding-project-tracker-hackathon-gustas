@@ -4,11 +4,11 @@ import { useState, useEffect } from 'react';
  * Vibecoding Project Tracker — starter scaffold.
  *
  * Build sequence:
- *   - M4  data-model    : render the four columns and the task cards below.
+ *   - M4  data-model    : render four columns and task cards.
  *   - M5  crud-modal    : add/edit/delete task modal.
  *   - M6  tag-style     : feature vs. bug color coding.
  *   - M7  task-owner    : assignee badge + handoff dropdown.
- *   - M8  due-tint      : due date color tinting.
+ *   - M8  due-tint      : color cards by due date.
  *   - M9  context       : context briefing field on modal.
  *   - M10 copy-prompt   : "Copy as Prompt Context" button.
  *   - M11 anchors       : Deliverable Anchor Board above Kanban.
@@ -45,6 +45,44 @@ export const TEAM = ['Gustas', 'Teammate B', 'Teammate C'];
 export const AI_TOOLS = ['Claude', 'ChatGPT', 'Cursor', 'Lovable', 'Replit', 'Other'];
 
 /**
+ * M8 due-tint: Calculates due date urgency and returns accessible styles + text labels
+ */
+export function getDueStatus(dueDate) {
+  if (!dueDate) return null;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const due = new Date(dueDate);
+  due.setHours(0, 0, 0, 0);
+
+  const diffDays = Math.ceil((due - today) / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) {
+    return {
+      label: 'OVERDUE',
+      cardStyle: 'bg-rose-950/30 border-rose-800/80',
+      badgeStyle: 'bg-rose-950 text-rose-300 border-rose-800',
+      icon: '🚨',
+    };
+  } else if (diffDays <= 2) {
+    return {
+      label: 'DUE SOON',
+      cardStyle: 'bg-amber-950/30 border-amber-800/80',
+      badgeStyle: 'bg-amber-950 text-amber-300 border-amber-800',
+      icon: '⏳',
+    };
+  } else {
+    return {
+      label: `${diffDays}d left`,
+      cardStyle: 'bg-slate-800 border-slate-700',
+      badgeStyle: 'bg-slate-900/90 text-slate-400 border-slate-700',
+      icon: '📅',
+    };
+  }
+}
+
+/**
  * A tiny localStorage hook — survives reloads, no library needed.
  */
 export function useLocalStorage(key, initialValue) {
@@ -68,7 +106,7 @@ export function useLocalStorage(key, initialValue) {
   return [value, setValue];
 }
 
-// 3-4 initial mock tasks for M4 initialization
+// Initial mock tasks with varying due dates for M8 testing
 const INITIAL_TASKS = [
   {
     id: 'task-101',
@@ -77,11 +115,11 @@ const INITIAL_TASKS = [
     type: 'feature',
     status: 'done',
     assignee: 'Gustas',
-    dueDate: '2026-10-21',
-    createdDate: '2026-10-20',
+    dueDate: '2026-10-18', // Overdue
+    createdDate: '2026-10-15',
     context: 'Ran npm install and verified dev server at localhost:5173.',
     contextTool: 'Claude',
-    contextUpdatedAt: '2026-10-20T10:00:00Z',
+    contextUpdatedAt: '2026-10-15T10:00:00Z',
   },
   {
     id: 'task-102',
@@ -90,7 +128,7 @@ const INITIAL_TASKS = [
     type: 'feature',
     status: 'in-progress',
     assignee: 'Gustas',
-    dueDate: '2026-10-22',
+    dueDate: '2026-10-21', // Due soon
     createdDate: '2026-10-20',
     context: 'Mapping STAGES array to responsive grid columns.',
     contextTool: 'ChatGPT',
@@ -103,7 +141,7 @@ const INITIAL_TASKS = [
     type: 'bug',
     status: 'review',
     assignee: 'Teammate B',
-    dueDate: '2026-10-20',
+    dueDate: '2026-10-20', // Overdue / Today
     createdDate: '2026-10-20',
     context: 'Resolved Vercel API 500 error on ping deliveries.',
     contextTool: 'Cursor',
@@ -116,7 +154,7 @@ const INITIAL_TASKS = [
     type: 'feature',
     status: 'todo',
     assignee: 'Teammate C',
-    dueDate: '2026-10-23',
+    dueDate: '2026-10-28', // On track
     createdDate: '2026-10-20',
     context: 'Next up for M5 milestone.',
     contextTool: null,
@@ -279,12 +317,15 @@ export default function App() {
                   stageTasks.map((task) => {
                     const isFeature = task.type === 'feature';
                     const initial = task.assignee ? task.assignee.charAt(0).toUpperCase() : '?';
+                    const dueStatus = getDueStatus(task.dueDate);
 
                     return (
                       <div
                         key={task.id}
                         onClick={() => handleOpenEdit(task)}
-                        className={`bg-slate-800 border-t border-r border-b border-slate-700 ${
+                        className={`border-t border-r border-b ${
+                          dueStatus ? dueStatus.cardStyle : 'bg-slate-800 border-slate-700'
+                        } ${
                           isFeature ? 'border-l-4 border-l-emerald-500' : 'border-l-4 border-l-rose-500'
                         } rounded-md p-4 shadow-sm hover:border-slate-500 transition cursor-pointer`}
                       >
@@ -317,6 +358,21 @@ export default function App() {
                         <p className="text-xs text-slate-400 line-clamp-2 mb-3">
                           {task.description}
                         </p>
+
+                        {/* M8 due-tint: Deadline Badge & Date Display */}
+                        {dueStatus && (
+                          <div className="mb-3 flex items-center justify-between text-xs">
+                            <span className="text-slate-500 font-mono text-[11px]">
+                              Due: {task.dueDate}
+                            </span>
+                            <span
+                              className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border flex items-center gap-1 ${dueStatus.badgeStyle}`}
+                            >
+                              <span>{dueStatus.icon}</span>
+                              <span>{dueStatus.label}</span>
+                            </span>
+                          </div>
+                        )}
 
                         {/* M7 task-owner: Inline "Hand off to..." selector */}
                         <div
